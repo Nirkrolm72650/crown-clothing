@@ -1,13 +1,14 @@
 import React, { useState } from "react";
 
 import {
-  createAuthWithEmailAndPassword,
+  signInWithGooglePopup,
   createUserDocumentFromAuth,
+  signInAuthUserWithEmailAndPassword,
 } from "../../utils/firebase/firebase.utils";
 
 import FormInput from "../form-input/form-input.component";
 import Button from "../button/button.component";
-import "./sign-up-form.styles.scss";
+import "./sign-in-form.styles.scss";
 
 const defaultFormFields = {
   displayName: "",
@@ -16,31 +17,40 @@ const defaultFormFields = {
   confirmPassword: "",
 };
 
-function SignUpForm(props) {
+function SignInForm(props) {
   const [formFields, setFormFields] = useState(defaultFormFields);
-  const { displayName, email, password, confirmPassword } = formFields;
+  const { email, password } = formFields;
 
   const resetFormFields = () => {
     setFormFields(defaultFormFields);
   };
+
+  const signInWithGoogle = async () => {
+    const { user } = await signInWithGooglePopup();
+    await createUserDocumentFromAuth(user);
+  };
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (password !== confirmPassword) {
-      alert("Les mots de passe de correspondent pas");
-      return;
-    }
-
     try {
-      const { user } = await createAuthWithEmailAndPassword(email, password);
-
-      await createUserDocumentFromAuth(user, { displayName });
+      const response = await signInAuthUserWithEmailAndPassword(
+        email,
+        password
+      );
+      console.log(response);
       resetFormFields();
     } catch (error) {
-      if (error.code === "auth/email-already-in-use") {
-        alert("L'utilisateur ne peut pas être créé, l'email est déjà utilisé");
-      } else {
-        console.log("L'utilisateur n'a pas pu être créé", error);
+      switch (error.code) {
+        case "auth/wrong-password":
+          alert("Mot de passe incorrect pour l'email");
+          break;
+
+        case "auth/user-not-found":
+          alert("Acun utilisateur trouvé pour cette adresse mail");
+          break;
+
+        default:
+          console.log(error);
       }
     }
   };
@@ -53,18 +63,9 @@ function SignUpForm(props) {
 
   return (
     <div className="sign-up-container">
-      <h2>Don't have an account ?</h2>
-      <span>Sign up with your email and password</span>
+      <h2>Already have an account ?</h2>
+      <span>Sign in with your email and password</span>
       <form action="" onSubmit={handleSubmit}>
-        <FormInput
-          label="Display Name"
-          type="text"
-          required
-          onChange={handleChange}
-          name="displayName"
-          value={displayName}
-        />
-
         <FormInput
           label="Email"
           type="email"
@@ -83,19 +84,15 @@ function SignUpForm(props) {
           value={password}
         />
 
-        <FormInput
-          label="Confirm Password"
-          type="password"
-          required
-          onChange={handleChange}
-          name="confirmPassword"
-          value={confirmPassword}
-        />
-
-        <Button type="submit">Sign Up</Button>
+        <div className="buttons-container">
+          <Button type="submit">Sign In</Button>
+          <Button type="button" buttonType="google" onClick={signInWithGoogle}>
+            Google Sign In
+          </Button>
+        </div>
       </form>
     </div>
   );
 }
 
-export default SignUpForm;
+export default SignInForm;
